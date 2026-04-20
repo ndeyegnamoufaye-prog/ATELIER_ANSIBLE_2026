@@ -3,11 +3,13 @@
   hosts: local
   become: true
   gather_facts: true
-
   vars:
     page_dest: /var/www/html/index.html
     yarn_repo_file: /etc/apt/sources.list.d/yarn.list
     yarn_repo_disabled_file: /etc/apt/sources.list.d/yarn.list.disabled
+    page_title: "Serveur déployé avec Ansible"
+    author: "Faye"
+    app_user: "Ndeye_Gnamou"
 
   tasks:
     - name: Afficher le système cible
@@ -52,8 +54,8 @@
         mode: "0755"
 
     - name: Déployer la page HTML personnalisée
-      copy:
-        src: files/index.html
+      template:
+        src: files/index.html.j2
         dest: "{{ page_dest }}"
         owner: root
         group: root
