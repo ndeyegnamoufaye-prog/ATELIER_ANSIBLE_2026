@@ -1,42 +1,31 @@
 ---
-- name: Atelier Ansible dans GitHub Codespaces - version durcie avec remédiation
-  hosts: local
+- name: Deploiement DEV
+  hosts: dev
   become: true
   gather_facts: true
+
   vars:
     page_dest: /var/www/html/index.html
     yarn_repo_file: /etc/apt/sources.list.d/yarn.list
     yarn_repo_disabled_file: /etc/apt/sources.list.d/yarn.list.disabled
-    page_title: "Serveur déployé avec Ansible"
+    app_name: "Application DEV"
+    env: "dev"
     author: "Faye"
-    app_user: "Ndeye_Gnamou"
+    page_title: "{{ app_name }}"
+    app_user: "Gnamou"
 
   tasks:
-    - name: Afficher le système cible
-      debug:
-        msg:
-          - "Hôte cible : {{ inventory_hostname }}"
-          - "OS : {{ ansible_distribution }} {{ ansible_distribution_version }}"
-          - "Python : {{ ansible_python.executable | default('inconnu') }}"
-
-    - name: Vérifier si le dépôt Yarn existe
+    - name: Verifier si le depot Yarn existe
       stat:
         path: "{{ yarn_repo_file }}"
       register: yarn_repo_stat
 
-    - name: Afficher un avertissement si le dépôt Yarn est présent
-      debug:
-        msg:
-          - "Un dépôt Yarn a été détecté : {{ yarn_repo_file }}"
-          - "Il peut provoquer un échec de apt update si sa clé GPG est absente."
-      when: yarn_repo_stat.stat.exists
-
-    - name: Désactiver temporairement le dépôt Yarn
+    - name: Desactiver temporairement le depot Yarn
       command: mv "{{ yarn_repo_file }}" "{{ yarn_repo_disabled_file }}"
       when: yarn_repo_stat.stat.exists
       changed_when: true
 
-    - name: Mettre à jour le cache APT
+    - name: Mettre a jour le cache APT
       apt:
         update_cache: true
 
@@ -45,7 +34,7 @@
         name: nginx
         state: present
 
-    - name: Vérifier que le répertoire web existe
+    - name: Verifier que le repertoire web existe
       file:
         path: /var/www/html
         state: directory
@@ -53,46 +42,87 @@
         group: root
         mode: "0755"
 
-    - name: Déployer la page HTML personnalisée
+    - name: Deployer la page HTML DEV
       template:
-        src: files/index.html.j2
+        src: files/index.html
         dest: "{{ page_dest }}"
         owner: root
         group: root
         mode: "0644"
-      notify: Redémarrer nginx
+      notify: Restart nginx
 
-    - name: Activer nginx au démarrage
-      service:
-        name: nginx
-        enabled: true
-
-    - name: Démarrer nginx
+    - name: Demarrer nginx
       service:
         name: nginx
         state: started
-
-    - name: Vérifier que le site répond en HTTP
-      uri:
-        url: http://localhost
-        method: GET
-        status_code: 200
-        return_content: true
-      register: test_http
-      retries: 5
-      delay: 2
-      until: test_http.status == 200
-
-    - name: Afficher le code HTTP retourné
-      debug:
-        msg: "Le serveur répond avec le code HTTP {{ test_http.status }}"
-
-    - name: Afficher un extrait du contenu HTTP
-      debug:
-        msg: "{{ test_http.content[:200] if test_http.content is defined else 'Aucun contenu retourné' }}"
+        enabled: true
 
   handlers:
-    - name: Redémarrer nginx
+    - name: Restart nginx
+      service:
+        name: nginx
+        state: restarted
+
+- name: Deploiement PROD
+  hosts: prod
+  become: true
+  gather_facts: true
+
+  vars:
+    page_dest: /var/www/html/index.html
+    yarn_repo_file: /etc/apt/sources.list.d/yarn.list
+    yarn_repo_disabled_file: /etc/apt/sources.list.d/yarn.list.disabled
+    app_name: "Application PROD"
+    env: "prod"
+    author: "Equipe Ops"
+    page_title: "{{ app_name }}"
+    app_user: "prod-user"
+
+  tasks:
+    - name: Verifier si le depot Yarn existe
+      stat:
+        path: "{{ yarn_repo_file }}"
+      register: yarn_repo_stat
+
+    - name: Desactiver temporairement le depot Yarn
+      command: mv "{{ yarn_repo_file }}" "{{ yarn_repo_disabled_file }}"
+      when: yarn_repo_stat.stat.exists
+      changed_when: true
+
+    - name: Mettre a jour le cache APT
+      apt:
+        update_cache: true
+
+    - name: Installer nginx
+      apt:
+        name: nginx
+        state: present
+
+    - name: Verifier que le repertoire web existe
+      file:
+        path: /var/www/html
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Deployer la page HTML PROD
+      template:
+        src: files/index.html
+        dest: "{{ page_dest }}"
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart nginx
+
+    - name: Demarrer nginx
+      service:
+        name: nginx
+        state: started
+        enabled: true
+
+  handlers:
+    - name: Restart nginx
       service:
         name: nginx
         state: restarted
